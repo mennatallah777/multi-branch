@@ -1,52 +1,43 @@
 pipeline {
     agent any
-
+ 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
-        IMAGE_NAME = 'mennayasser777/hello-app'
+        APP_NAME = 'new-app-nti' 
+        REPO_URL = "https://github.com/mennatallah777/multi-branch.git"
     }
 
     stages {
-        stage('Env') {
+        stage('Getting Repo files') {
             steps {
-                sh 'echo "Build number: ${BUILD_NUMBER}"'
+                git branch: "${GIT_BRANCH}", credentialsId: 'jenkins', url: "${REPO_URL}"
             }
         }
 
-        stage('Checkout Repo') {
+        stage('Build Docker Image') {
             steps {
-                git branch: 'main', credentialsId: 'github-creds', url: "${REPOSITORY_URL}"
+                script {
+                    sh """
+                        docker build -t ${APP_NAME}:${BUILD_NUMBER} .
+                    """
+                }
             }
         }
 
-        stage('Build') {
+        stage('Push Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
-            }
-        }
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
 
-        stage('Login') {
-            steps {
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-            }
-        }
+                        sh """
+                            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
 
-        stage('Tag') {
-            steps {
-                sh "docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest"
-            }
-        }
+                            docker tag ${APP_NAME}:${BUILD_NUMBER} ${DOCKER_USERNAME}/${APP_NAME}:${BUILD_NUMBER}
 
-        stage('Push') {
-            steps {
-                sh "docker push ${IMAGE_NAME}:${BUILD_NUMBER}"
-                sh "docker push ${IMAGE_NAME}:latest"
-            }
-        }
+                            docker push ${DOCKER_USERNAME}/${APP_NAME}:${BUILD_NUMBER}
+                        """
 
-        stage('Run') {
-            steps {
-                sh "docker run --rm ${IMAGE_NAME}:${BUILD_NUMBER}"
+                    }
+                }
             }
         }
     }
