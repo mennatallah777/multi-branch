@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Getting Repo files') {
             steps {
-                git branch: "${GIT_BRANCH}", credentialsId: 'jenkins', url: "${REPO_URL}"
+                git branch: "${GIT_BRANCH}", credentialsId: 'dockerhub-creds', url: "${REPO_URL}"
             }
         }
 
